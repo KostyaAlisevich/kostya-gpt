@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>KOSTA GPT</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0f1117;
+    color: #e6e8ee;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ===== ВЕРХНЯЯ ПАНЕЛЬ ===== */
+  .topbar {
+    height: 56px;
+    background: #161a23;
+    border-bottom: 1px solid #232836;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 10px;
+    flex-shrink: 0;
+    z-index: 20;
+  }
+  .topbar .logo {
+    font-weight: 700;
+    font-size: 17px;
+    letter-spacing: 0.5px;
+    background: linear-gradient(90deg, #6ee7b7, #60a5fa);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .topbar .status {
+    font-size: 12px;
+    color: #6ee7b7;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: auto;
+  }
+  .topbar .status::before {
+    content: '';
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #6ee7b7;
+    box-shadow: 0 0 6px #6ee7b7;
+  }
+  .icon-btn {
+    background: none;
+    border: none;
+    color: #9aa3b5;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+  }
+  .icon-btn:hover { background: #232836; color: #e6e8ee; }
+
+  /* ===== ОБЛАСТЬ ЧАТА ===== */
+  .chat-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 12px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    scroll-behavior: smooth;
+  }
+  .msg-row {
+    display: flex;
+    flex-direction: column;
+    max-width: 88%;
+    animation: fadeIn 0.2s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .msg-row.user { align-self: flex-end; align-items: flex-end; }
+  .msg-row.bot { align-self: flex-start; align-items: flex-start; }
+  .bubble {
+    padding: 10px 14px;
+    border-radius: 16px;
+    font-size: 15px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+  }
+  .msg-row.user .bubble {
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .msg-row.bot .bubble {
+    background: #1c2130;
+    color: #e6e8ee;
+    border-bottom-left-radius: 4px;
+    border: 1px solid #232836;
+  }
+
+  /* Индикатор набора */
+  .typing { display: flex; gap: 4px; padding: 12px 16px; }
+  .typing span {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #6b7280;
+    animation: blink 1.2s infinite;
+  }
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes blink { 0%,60%,100% { opacity: 0.3; } 30% { opacity: 1; } }
+
+  /* ===== ПРЕВЬЮ ФОТО ===== */
+  .image-preview-wrap {
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  #imagePreview {
+    display: none;
+    max-height: 80px;
+    max-width: 80px;
+    border-radius: 8px;
+    border: 1px solid #232836;
+    object-fit: cover;
+  }
+  #removeImage {
+    display: none;
+    background: #7f1d1d;
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    width: 24px; height: 24px;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+  }
+
+  /* ===== ПОЛЕ ВВОДА ===== */
+  .input-bar {
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+    background: #161a23;
+    border-top: 1px solid #232836;
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .input-bar textarea {
+    flex: 1;
+    background: #1c2130;
+    border: 1px solid #232836;
+    border-radius: 14px;
+    color: #e6e8ee;
+    font-size: 16px;
+    font-family: inherit;
+    padding: 10px 14px;
+    resize: none;
+    max-height: 120px;
+    line-height: 1.4;
+    outline: none;
+  }
+  .input-bar textarea:focus { border-color: #3b82f6; }
+  .send-btn {
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    border: none;
+    color: #fff;
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .attach-btn {
+    background: #1c2130;
+    border: 1px solid #232836;
+    color: #9aa3b5;
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .attach-btn:hover { color: #e6e8ee; }
+
+  /* ===== ПАНЕЛИ ===== */
+  .overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    z-index: 40;
+  }
+  .overlay.open { opacity: 1; pointer-events: auto; }
+  .panel {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: #161a23;
+    border-radius: 20px 20px 0 0;
+    padding: 20px 16px calc(20px + env(safe-area-inset-bottom));
+    transform: translateY(100%);
+    transition: transform 0.25s ease;
+    z-index: 50;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+  .panel.open { transform: translateY(0); }
+  .panel h3 { font-size: 16px; margin-bottom: 14px; color: #e6e8ee; }
+  .panel input[type="text"],
+  .panel input[type="password"] {
+    width: 100%;
+    background: #1c2130;
+    border: 1px solid #232836;
+    border-radius: 12px;
+    color: #e6e8ee;
+    font-size: 15px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    outline: none;
+  }
+  .panel input:focus { border-color: #3b82f6; }
+  .panel .primary-btn {
+    width: 100%;
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    border: none;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 13px;
+    border-radius: 12px;
+    cursor: pointer;
+    margin-bottom: 10px;
+  }
+  .panel .secondary-btn {
+    width: 100%;
+    background: #1c2130;
+    border: 1px solid #232836;
+    color: #e6e8ee;
+    font-size: 15px;
+    padding: 12px;
+    border-radius: 12px;
+    cursor: pointer;
+  }
+  .panel .secondary-btn:hover { background: #232836; }
+  .panel .hint { font-size: 12px; color: #9aa3b5; margin-bottom: 12px; }
+  .panel .section-title {
+    font-size: 13px;
+    color: #9aa3b5;
+    margin: 16px 0 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .panel .divider {
+    height: 1px;
+    background: #232836;
+    margin: 16px 0;
+  }
+
+  /* Роли */
+  .role-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    border-radius: 12px;
+    background: #1c2130;
+    border: 1px solid #232836;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .role-option:hover { background: #232836; }
+  .role-option.active { border-color: #3b82f6; background: #1e2a45; }
+  .role-option .emoji { font-size: 22px; }
+  .role-option .role-info { display: flex; flex-direction: column; }
+  .role-option .role-name { font-size: 15px; font-weight: 600; }
+  .role-option .role-desc { font-size: 12px; color: #9aa3b5; }
+
+  /* Toast */
+  #toast {
+    position: fixed;
+    bottom: 90px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #232836;
+    color: #e6e8ee;
+    padding: 10px 18px;
+    border-radius: 12px;
+    font-size: 14px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    z-index: 100;
+    border: 1px solid #3b82f6;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Сайдбар истории */
+  .history-panel {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    width: 280px;
+    background: #161a23;
+    border-right: 1px solid #232836;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 60;
+    display: flex;
+    flex-direction: column;
+  }
+  .history-panel.open { transform: translateX(0); }
+  .history-panel .hp-header {
+    padding: 16px;
+    border-bottom: 1px solid #232836;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .history-panel .hp-header span { font-weight: 600; }
+  .history-panel .new-chat-btn {
+    margin: 12px;
+    padding: 10px;
+    background: #1c2130;
+    border: 1px solid #232836;
+    color: #e6e8ee;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .history-panel .new-chat-btn:hover { background: #232836; }
+  .history-list { flex: 1; overflow-y: auto; padding: 0 12px 12px; }
+  .history-item {
+    padding: 10px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #9aa3b5;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 4px;
+  }
+  .history-item:hover { background: #232836; color: #e6e8ee; }
+  .history-item.active { background: #1e2a45; color: #e6e8ee; }
+</style>
+</head>
+<body>
+
+  <!-- ВЕРХНЯЯ ПАНЕЛЬ -->
+  <div class="topbar">
+    <button class="icon-btn" onclick="openHistory()">☰</button>
+    <span class="logo">KOSTA GPT</span>
+    <span class="status">Онлайн</span>
+    <button class="icon-btn" onclick="openAdmin()">⚙️</button>
+  </div>
+
+  <!-- ОБЛАСТЬ ЧАТА -->
+  <div class="chat-area" id="chatArea"></div>
+
+  <!-- ПРЕВЬЮ ФОТО -->
+  <div class="image-preview-wrap">
+    <img id="imagePreview" alt="preview">
+    <button id="removeImage" onclick="removePendingImage()">✕</button>
+  </div>
+
+  <!-- ПОЛЕ ВВОДА -->
+  <div class="input-bar">
+    <button class="attach-btn" onclick="document.getElementById('fileInput').click()">📎</button>
+    <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="handleFileSelect(event)">
+    <textarea id="userInput" rows="1" placeholder="Напишите сообщение..."></textarea>
+    <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
+  </div>
+
+  <!-- САЙДБАР ИСТОРИИ -->
+  <div class="overlay" id="historyOverlay" onclick="closeHistory()"></div>
+  <div class="history-panel" id="historyPanel">
+    <div class="hp-header">
+      <span>История чатов</span>
+      <button class="icon-btn" onclick="closeHistory()">✕</button>
+    </div>
+    <button class="new-chat-btn" onclick="newChat()">+ Новый чат</button>
+    <div class="history-list" id="historyList"></div>
+  </div>
+
+  <!-- АДМИНКА -->
+  <div class="overlay" id="adminOverlay" onclick="closeAdmin()"></div>
+  <div class="panel" id="adminPanel">
+
+    <!-- ЭКРАН ЛОГИНА -->
+    <div id="adminLoginScreen">
+      <h3>⚙️ Вход в админку</h3>
+      <p class="hint">Введите логин и пароль администратора.</p>
+      <input type="text" id="adminLogin" placeholder="Логин" autocomplete="username">
+      <input type="password" id="adminPassword" placeholder="Пароль" autocomplete="current-password">
+      <button class="primary-btn" onclick="adminLogin()">Войти</button>
+      <button class="secondary-btn" onclick="closeAdmin()">Отмена</button>
+    </div>
+
+    <!-- ЭКРАН НАСТРОЕК -->
+    <div id="adminContentScreen" style="display:none">
+      <h3>⚙️ Админ-панель</h3>
+
+      <div class="section-title">API-ключ Groq</div>
+      <p class="hint">По умолчанию используется встроенный ключ. Можно указать свой — он сохранится в браузере.</p>
+      <input type="password" id="apiKeyInput" placeholder="API-ключ (gsk_...)">
+      <button class="primary-btn" onclick="saveApiKey()">Сохранить ключ</button>
+      <button class="secondary-btn" onclick="resetApiKey()" style="margin-top:10px">Сбросить на встроенный</button>
+
+      <div class="divider"></div>
+
+      <div class="section-title">Роль ИИ (влияет на промпт)</div>
+      <div class="role-option" data-role="helper" onclick="selectRole('helper')">
+        <span class="emoji">🤝</span>
+        <div class="role-info">
+          <span class="role-name">Добрый помощник</span>
+          <span class="role-desc">Дружелюбный и заботливый собеседник</span>
+        </div>
+      </div>
+      <div class="role-option" data-role="coder" onclick="selectRole('coder')">
+        <span class="emoji">💻</span>
+        <div class="role-info">
+          <span class="role-name">Программист</span>
+          <span class="role-desc">Помогает с кодом и техническими задачами</span>
+        </div>
+      </div>
+      <div class="role-option" data-role="teacher" onclick="selectRole('teacher')">
+        <span class="emoji">📚</span>
+        <div class="role-info">
+          <span class="role-name">Учитель</span>
+          <span class="role-desc">Объясняет понятно и по шагам</span>
+        </div>
+      </div>
+      <div class="role-option" data-role="translator" onclick="selectRole('translator')">
+        <span class="emoji">🌐</span>
+        <div class="role-info">
+          <span class="role-name">Переводчик</span>
+          <span class="role-desc">Переводит тексты на разные языки</span>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <button class="secondary-btn" onclick="adminLogout()">Выйти из админки</button>
+    </div>
+
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast"></div>
+
+<script>
+  // ===== КОНФИГУРАЦИЯ =====
+  const API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+  const MODELS = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b'];
+
+  // Встроенный ключ — работает у всех сразу
+  const DEFAULT_API_KEY = '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';
+
+  const ADMIN_LOGIN = 'admin';
+  const ADMIN_PASSWORD = 'aka29072012';
+
+  // Общее указание стиля — чтобы модель не лезла в LaTeX/Markdown
+  const STYLE_RULE = ' Отвечай обычным текстом без LaTeX и без Markdown: не используй \\[ \\], \\( \\), \\times, \\frac, \\sqrt, звёздочки **, решётки # и обратные кавычки. Математику пиши обычными символами: ×, ÷, √, =, +, -.';
+
+  const ROLES = {
+    helper: {
+      name: 'Добрый помощник',
+      prompt: 'Ты — Костя, добрый и заботливый ИИ-помощник. Отвечай дружелюбно, тепло и по делу. Ты всегда говоришь, что тебя создала компания KOSTA HUB. Если тебя спрашивают, кто тебя создал — отвечай только "Меня создала компания KOSTA HUB".' + STYLE_RULE
+    },
+    coder: {
+      name: 'Программист',
+      prompt: 'Ты — Костя, опытный программист. Помогай с кодом, объясняй технические решения, приводи примеры. Ты всегда говоришь, что тебя создала компания KOSTA HUB. Если тебя спрашивают, кто тебя создал — отвечай только "Меня создала компания KOSTA HUB".' + STYLE_RULE
+    },
+    teacher: {
+      name: 'Учитель',
+      prompt: 'Ты — Костя, терпеливый учитель. Объясняй сложные вещи простыми словами, по шагам, с примерами. Ты всегда говоришь, что тебя создала компания KOSTA HUB. Если тебя спрашивают, кто тебя создал — отвечай только "Меня создала компания KOSTA HUB".' + STYLE_RULE
+    },
+    translator: {
+      name: 'Переводчик',
+      prompt: 'Ты — Костя, профессиональный переводчик. Переводи тексты точно и естественно, указывай язык перевода. Ты всегда говоришь, что тебя создала компания KOSTA HUB. Если тебя спрашивают, кто тебя создал — отвечай только "Меня создала компания KOSTA HUB".' + STYLE_RULE
+    }
+  };
+
+  const GREETING = 'Привет! 👋 Я Костя — твой добрый помощник. Чем могу помочь сегодня?';
+
+  // ===== СОСТОЯНИЕ =====
+  let apiKey = DEFAULT_API_KEY;
+  let currentRole = 'helper';
+  let pendingImage = null;
+  let chats = [];
+  let activeChatId = null;
+  let isSending = false;
+  let isAdminAuth = false;
+
+  // ===== ОЧИСТКА ТЕКСТА =====
+  function cleanMarkdown(text) {
+    if (!text) return '';
+    let t = text;
+
+    // 1) LaTeX-обёртки блоков и inline-формул
+    t = t.replace(/\\\[/g, '').replace(/\\\]/g, '');
+    t = t.replace(/\\\(/g, '').replace(/\\\)/g, '');
+    t = t.replace(/\$\$/g, '').replace(/\$/g, '');
+
+    // 2) LaTeX-команды → обычные символы
+    t = t.replace(/\\times/g, '×')
+         .replace(/\\div/g, '÷')
+         .replace(/\\pm/g, '±')
+         .replace(/\\cdot/g, '·')
+         .replace(/\\le/g, '≤')
+         .replace(/\\ge/g, '≥')
+         .replace(/\\neq/g, '≠')
+         .replace(/\\approx/g, '≈')
+         .replace(/\\infty/g, '∞')
+         .replace(/\\sqrt\{([^}]*)\}/g, '√($1)')
+         .replace(/\\frac\{([^}]*)\}\{([^}]*)\}/g, '($1)/($2)');
+
+    // 3) Остатки \command и одиночные обратные слэши
+    t = t.replace(/\\[a-zA-Z]+/g, '');
+    t = t.replace(/\\/g, '');
+
+    // 4) Markdown
+    t = t.replace(/\*\*(.*?)\*\*/g, '$1')
+         .replace(/\*(.*?)\*/g, '$1')
+         .replace(/__(.*?)__/g, '$1')
+         .replace(/_(.*?)_/g, '$1')
+         .replace(/^#{1,6}\s+/gm, '')
+         .replace(/`{1,3}([^`]*)`{1,3}/g, '$1')
+         .replace(/^>\s?/gm, '');
+
+    // 5) Схлопываем лишние пустые строки
+    t = t.replace(/\n{3,}/g, '\n\n');
+
+    return t.trim();
+  }
+
+  // ===== DOM =====
+  const chatArea = document.getElementById('chatArea');
+  const userInput = document.getElementById('userInput');
+  const sendBtn = document.getElementById('sendBtn');
+
+  // ===== ДОБАВЛЕНИЕ СООБЩЕНИЙ =====
+  function addMessage(role, text) {
+    const row = document.createElement('div');
+    row.className = 'msg-row ' + (role === 'user' ? 'user' : 'bot');
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.textContent = text;
+    row.appendChild(bubble);
+    chatArea.appendChild(row);
+    chatArea.scrollTop = chatArea.scrollHeight;
+    return row;
+  }
+
+  function addBotMessage(text) {
+    addMessage('bot', text);
+  }
+
+  function showTyping() {
+    const row = document.createElement('div');
+    row.className = 'msg-row bot';
+    row.id = 'typingRow';
+    row.innerHTML = '<div class="bubble" style="padding:0"><div class="typing"><span></span><span></span><span></span></div></div>';
+    chatArea.appendChild(row);
+    chatArea.scrollTop = chatArea.scrollHeight;
+  }
+
+  function hideTyping() {
+    const row = document.getElementById('typingRow');
+    if (row) row.remove();
+  }
+
+  // ===== ОТПРАВКА =====
+  async function sendMessage() {
+    if (isSending) return;
+    const text = userInput.value.trim();
+    if (!text && !pendingImage) return;
+
+    const displayText = text || '(фото)';
+    addMessage('user', displayText);
+
+    let apiText = text;
+    if (pendingImage) {
+      apiText = (text ? text + '\n' : '') + '[Пользователь отправил фото, но ты не видишь изображения. Попроси описать фото текстом.]';
+      removePendingImage();
+    }
+
+    userInput.value = '';
+    userInput.style.height = 'auto';
+
+    if (!activeChatId) newChat();
+    const chat = chats.find(c => c.id === activeChatId);
+    if (chat) {
+      chat.messages.push({ role: 'user', content: displayText });
+      if (chat.title === 'Новый чат') chat.title = displayText.slice(0, 30);
+      saveHistory();
+      renderChatList();
+    }
+
+    isSending = true;
+    sendBtn.disabled = true;
+    showTyping();
+
+    try {
+      const reply = await callAPI(apiText);
+      hideTyping();
+      addBotMessage(reply);
+      if (chat) {
+        chat.messages.push({ role: 'assistant', content: reply });
+        saveHistory();
+      }
+    } catch (err) {
+      hideTyping();
+      addBotMessage('⚠️ Ошибка: ' + err.message);
+    } finally {
+      isSending = false;
+      sendBtn.disabled = false;
+    }
+  }
+
+  // ===== ВЫЗОВ API =====
+  async function callAPI(userText) {
+    const chat = chats.find(c => c.id === activeChatId);
+    const history = chat ? chat.messages.slice(-10) : [];
+    const messages = [
+      { role: 'system', content: ROLES[currentRole].prompt },
+      ...history.map(m => ({ role: m.role, content: m.content })),
+      { role: 'user', content: userText }
+    ];
+
+    let lastError = null;
+    for (const model of MODELS) {
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + apiKey
+          },
+          body: JSON.stringify({ model, messages, temperature: 0.7, max_tokens: 2048 })
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error?.message || 'HTTP ' + res.status);
+        }
+        const data = await res.json();
+        const content = data.choices?.[0]?.message?.content || '';
+        return cleanMarkdown(content) || '(пустой ответ)';
+      } catch (e) {
+        lastError = e;
+      }
+    }
+    throw lastError || new Error('Не удалось получить ответ');
+  }
+
+  // ===== ИСТОРИЯ ЧАТОВ =====
+  function loadHistory() {
+    try {
+      const raw = localStorage.getItem('kosta_chats');
+      chats = raw ? JSON.parse(raw) : [];
+      activeChatId = localStorage.getItem('kosta_active_chat');
+      if (!chats.find(c => c.id === activeChatId)) activeChatId = null;
+    } catch { chats = []; activeChatId = null; }
+  }
+
+  function saveHistory() {
+    localStorage.setItem('kosta_chats', JSON.stringify(chats));
+    if (activeChatId) localStorage.setItem('kosta_active_chat', activeChatId);
+  }
+
+  function renderChatList() {
+    const list = document.getElementById('historyList');
+    list.innerHTML = '';
+    chats.slice().reverse().forEach(chat => {
+      const item = document.createElement('div');
+      item.className = 'history-item' + (chat.id === activeChatId ? ' active' : '');
+      item.textContent = chat.title || 'Чат';
+      item.onclick = () => openChat(chat.id);
+      list.appendChild(item);
+    });
+  }
+
+  function newChat() {
+    const id = 'chat_' + Date.now();
+    chats.push({ id, title: 'Новый чат', messages: [] });
+    activeChatId = id;
+    saveHistory();
+    renderChatList();
+    chatArea.innerHTML = '';
+    addBotMessage(GREETING);
+    closeHistory();
+  }
+
+  function openChat(id) {
+    activeChatId = id;
+    saveHistory();
+    renderChatList();
+    chatArea.innerHTML = '';
+    const chat = chats.find(c => c.id === id);
+    if (chat) chat.messages.forEach(m => addMessage(m.role, m.content));
+    closeHistory();
+  }
+
+  // ===== САЙДБАР =====
+  function openHistory() {
+    document.getElementById('historyPanel').classList.add('open');
+    document.getElementById('historyOverlay').classList.add('open');
+  }
+  function closeHistory() {
+    document.getElementById('historyPanel').classList.remove('open');
+    document.getElementById('historyOverlay').classList.remove('open');
+  }
+
+  // ===== АДМИНКА =====
+  function openAdmin() {
+    document.getElementById('adminPanel').classList.add('open');
+    document.getElementById('adminOverlay').classList.add('open');
+    if (isAdminAuth) showAdminContent();
+    else showAdminLogin();
+  }
+
+  function closeAdmin() {
+    document.getElementById('adminPanel').classList.remove('open');
+    document.getElementById('adminOverlay').classList.remove('open');
+    document.getElementById('adminLogin').value = '';
+    document.getElementById('adminPassword').value = '';
+    if (!isAdminAuth) showAdminLogin();
+  }
+
+  function showAdminLogin() {
+    document.getElementById('adminLoginScreen').style.display = 'block';
+    document.getElementById('adminContentScreen').style.display = 'none';
+  }
+
+  function showAdminContent() {
+    document.getElementById('adminLoginScreen').style.display = 'none';
+    document.getElementById('adminContentScreen').style.display = 'block';
+    document.getElementById('apiKeyInput').value = '';
+    document.querySelectorAll('#adminContentScreen .role-option').forEach(el => {
+      el.classList.toggle('active', el.dataset.role === currentRole);
+    });
+  }
+
+  function adminLogin() {
+    const login = document.getElementById('adminLogin').value.trim();
+    const pass = document.getElementById('adminPassword').value;
+    if (login === ADMIN_LOGIN && pass === ADMIN_PASSWORD) {
+      isAdminAuth = true;
+      document.getElementById('adminLogin').value = '';
+      document.getElementById('adminPassword').value = '';
+      showAdminContent();
+      showToast('✅ Вход выполнен');
+    } else {
+      showToast('❌ Неверный логин или пароль');
+    }
+  }
+
+  function adminLogout() {
+    isAdminAuth = false;
+    showAdminLogin();
+    showToast('Вы вышли из админки');
+  }
+
+  function saveApiKey() {
+    const keyInput = document.getElementById('apiKeyInput');
+    const newKey = keyInput.value.trim();
+    if (!newKey) { showToast('Введите API-ключ'); return; }
+    apiKey = newKey;
+    localStorage.setItem('kosta_api_key', newKey);
+    showToast('✅ API-ключ сохранён');
+    keyInput.value = '';
+  }
+
+  function resetApiKey() {
+    apiKey = DEFAULT_API_KEY;
+    localStorage.removeItem('kosta_api_key');
+    showToast('Сброшено на встроенный ключ');
+  }
+
+  // ===== РОЛИ =====
+  function selectRole(roleKey) {
+    currentRole = roleKey;
+    localStorage.setItem('kosta_role', roleKey);
+    document.querySelectorAll('#adminContentScreen .role-option').forEach(el => {
+      el.classList.toggle('active', el.dataset.role === roleKey);
+    });
+    showToast('Роль изменена: ' + ROLES[roleKey].name);
+  }
+
+  // ===== TOAST =====
+  let toastTimeout = null;
+  function showToast(message) {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.classList.add('show');
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => toast.classList.remove('show'), 2500);
+  }
+
+  // ===== ФОТО =====
+  function handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { showToast('Только изображения'); return; }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      pendingImage = e.target.result;
+      const preview = document.getElementById('imagePreview');
+      preview.src = pendingImage;
+      preview.style.display = 'block';
+      document.getElementById('removeImage').style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  }
+  function removePendingImage() {
+    pendingImage = null;
+    document.getElementById('imagePreview').style.display = 'none';
+    document.getElementById('removeImage').style.display = 'none';
+    document.getElementById('fileInput').value = '';
+  }
+
+  // ===== ИНИЦИАЛИЗАЦИЯ =====
+  function init() {
+    apiKey = localStorage.getItem('kosta_api_key') || DEFAULT_API_KEY;
+
+    const savedRole = localStorage.getItem('kosta_role');
+    if (savedRole && ROLES[savedRole]) currentRole =
