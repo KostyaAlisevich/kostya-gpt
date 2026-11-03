@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b0f1a">
+<title>KOSTA GPT</title>
+<style>
+:root{
+  color-scheme: dark;
+  --bg:#090d16; --surface:#111827; --surface-2:#172235; --line:rgba(148,163,184,.14);
+  --muted:#91a0b7; --text:#eef2ff;
+  --accent:#7c5cff; --accent-2:#26c6da; --danger:#ef476f; --ok:#4ade80;
+}
+[data-theme="ocean"]{ --accent:#0ea5e9; --accent-2:#22d3ee; }
+[data-theme="sunset"]{ --accent:#f97316; --accent-2:#ec4899; }
+[data-theme="matrix"]{ --accent:#22c55e; --accent-2:#84cc16; }
+
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  background:
+    radial-gradient(ellipse at 10% -10%, rgba(124,92,255,.18), transparent 42%),
+    radial-gradient(ellipse at 100% 35%, rgba(38,198,218,.08), transparent 35%),
+    var(--bg);
+  color:var(--text); display:flex; flex-direction:column; overflow:hidden;
+  transition: background .3s;
+}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+button:disabled{opacity:.5;cursor:not-allowed}
+
+/* LOADER */
+#loader{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;z-index:9999;transition:opacity .4s}
+#loader.hidden{opacity:0;pointer-events:none}
+.spinner{width:46px;height:46px;border:3px solid rgba(124,92,255,.2);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loader .brand{font-weight:800;font-size:20px;letter-spacing:1px;background:linear-gradient(90deg,var(--accent),var(--accent-2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+#loader .err{color:var(--danger);font-size:13px;max-width:80%;text-align:center;line-height:1.5}
+#loader button{padding:10px 18px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;font-size:14px}
+
+/* TOPBAR */
+.topbar{
+  height:64px;padding:0 16px;gap:12px;display:flex;align-items:center;
+  background:rgba(12,18,31,.88);border-bottom:1px solid var(--line);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  flex-shrink:0;z-index:20;
+}
+.topbar .logo{font-weight:800;font-size:18px;letter-spacing:.8px;
+  background:linear-gradient(90deg,var(--accent),var(--accent-2));
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.topbar .status{
+  font-size:11px;padding:6px 10px;border-radius:99px;margin-left:auto;
+  background:rgba(34,197,94,.09);border:1px solid rgba(34,197,94,.18);
+  color:#86efac;display:flex;align-items:center;gap:6px;
+}
+.topbar .status::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 10px var(--ok)}
+.topbar .status.offline{background:rgba(239,71,111,.1);border-color:rgba(239,71,111,.3);color:#fca5b5}
+.topbar .status.offline::before{background:var(--danger);box-shadow:0 0 8px var(--danger)}
+.topbar .role-pill{font-size:11px;padding:5px 9px;border-radius:8px;background:var(--surface-2);border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.icon-btn{
+  width:38px;height:38px;border:1px solid transparent;color:#aab6ca;
+  border-radius:10px;display:flex;align-items:center;justify-content:center;
+  font-size:19px;transition:background .15s,border-color .15s;
+}
+.icon-btn:hover{background:var(--surface-2);border-color:var(--line);color:var(--text)}
+
+/* CHAT */
+.chat-area{
+  flex:1;overflow-y:auto;width:100%;max-width:900px;margin:0 auto;
+  padding:26px 18px 22px;display:flex;flex-direction:column;gap:18px;
+  scroll-behavior:smooth;scrollbar-width:thin;scrollbar-color:#35415a transparent;
+}
+.chat-area::-webkit-scrollbar{width:8px}
+.chat-area::-webkit-scrollbar-thumb{background:#35415a;border-radius:4px}
+.msg-row{display:flex;flex-direction:column;gap:5px;max-width:min(82%,680px);animation:fadeIn .25s ease}
+.msg-row.user{align-self:flex-end;align-items:flex-end}
+.msg-row.bot{align-self:flex-start;align-items:flex-start}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+.bubble{
+  padding:13px 16px;border-radius:18px;font-size:15px;line-height:1.58;
+  letter-spacing:.05px;word-wrap:break-word;overflow-wrap:anywhere;
+  box-shadow:0 8px 24px rgba(0,0,0,.12);
+}
+.msg-row.user .bubble{
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));
+  color:#fff;border:1px solid rgba(255,255,255,.12);border-bottom-right-radius:6px;
+}
+.msg-row.bot .bubble{
+  background:linear-gradient(145deg,#172235,#121b2b);
+  border:1px solid rgba(148,163,184,.13);border-bottom-left-radius:6px;
+}
+.bubble img{max-width:100%;max-height:280px;border-radius:12px;margin-top:8px;display:block}
+
+.bubble pre{
+  background:#0a1220;border:1px solid var(--line);border-radius:12px;
+  padding:12px;margin:10px 0;overflow-x:auto;position:relative;font-size:13px;
+}
+.bubble pre code{font-family:'SF Mono',Menlo,Consolas,monospace;color:#c9d6ea;white-space:pre}
+.copy-btn{
+  position:absolute;top:6px;right:6px;background:var(--surface-2);
+  border:1px solid var(--line);color:var(--muted);font-size:11px;
+  padding:4px 8px;border-radius:6px;transition:.15s;
+}
+.copy-btn:hover{color:var(--text);background:#1e2a45}
+
+.msg-actions{display:flex;gap:6px;opacity:0;transition:.2s}
+.msg-row:hover .msg-actions{opacity:1}
+.msg-actions button{
+  background:var(--surface-2);border:1px solid var(--line);color:var(--muted);
+  font-size:11px;padding:4px 8px;border-radius:8px;
+}
+.msg-actions button:hover{color:var(--text)}
+
+.typing{display:flex;gap:4px;padding:14px 17px}
+.typing span{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:blink 1.2s infinite}
+.typing span:nth-child(2){animation-delay:.2s}
+.typing span:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,60%,100%{opacity:.3}30%{opacity:1}}
+
+/* PREVIEW */
+.image-preview-wrap{
+  width:100%;max-width:900px;margin:0 auto;padding:0 18px 8px;
+  display:flex;align-items:center;gap:8px;
+}
+#imagePreview{max-height:92px;max-width:92px;border-radius:14px;border:1px solid var(--line);display:none;object-fit:cover}
+#removeImage{background:var(--danger);color:#fff;width:26px;height:26px;border-radius:50%;font-size:14px;display:none;margin-left:-24px;margin-top:-60px;border:2px solid var(--bg)}
+
+/* INPUT */
+.input-bar{
+  padding:12px max(16px,calc((100vw - 900px)/2)) calc(12px + env(safe-area-inset-bottom));
+  background:rgba(12,18,31,.92);border-top:1px solid var(--line);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  display:flex;align-items:flex-end;gap:10px;flex-shrink:0;
+}
+.input-bar textarea{
+  flex:1;min-height:46px;max-height:140px;padding:12px 16px;
+  border-radius:18px;background:#151f31;border:1px solid rgba(148,163,184,.16);
+  font-size:15px;color:#f1f5ff;resize:none;outline:none;
+  line-height:1.4;font-family:inherit;transition:border-color .15s,box-shadow .15s;
+}
+.input-bar textarea::placeholder{color:#71809a}
+.input-bar textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,92,255,.15)}
+.attach-btn,.send-btn,.mic-btn{width:46px;height:46px;border-radius:15px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px}
+.attach-btn,.mic-btn{background:#151f31;border:1px solid var(--line);color:#aab6ca}
+.attach-btn:hover,.mic-btn:hover{color:var(--text);border-color:var(--accent)}
+.mic-btn.recording{background:var(--danger);color:#fff;border-color:var(--danger);animation:pulse 1.2s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(239,71,111,.4)}50%{box-shadow:0 0 0 10px rgba(239,71,111,0)}}
+.send-btn{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;box-shadow:0 7px 18px rgba(124,92,255,.3)}
+.send-btn:active,.attach-btn:active,.mic-btn:active{transform:scale(.96)}
+.send-btn.stop{background:linear-gradient(135deg,#ef476f,#f97316)}
+
+/* OVERLAY / PANELS */
+.overlay{position:fixed;inset:0;background:rgba(2,6,16,.68);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);opacity:0;pointer-events:none;transition:opacity .2s;z-index:40}
+.overlay.open{opacity:1;pointer-events:auto}
+.panel{
+  position:fixed;bottom:0;left:0;right:0;background:#101827;
+  border-radius:24px 24px 0 0;padding:24px 20px calc(22px + env(safe-area-inset-bottom));
+  transform:translateY(100%);transition:transform .25s ease;z-index:50;
+  max-height:88vh;overflow-y:auto;border:1px solid var(--line);border-bottom:0;
+  box-shadow:0 -18px 60px rgba(0,0,0,.35);
+}
+.panel.open{transform:translateY(0)}
+.panel h3{font-size:19px;margin-bottom:14px;letter-spacing:-.3px;display:flex;align-items:center;gap:8px}
+.panel .close-btn{position:absolute;top:16px;right:16px;width:34px;height:34px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line);font-size:16px}
+.panel input[type="text"],.panel input[type="password"],.panel input[type="number"],.panel select,.panel textarea{
+  width:100%;background:#151f31;border:1px solid var(--line);border-radius:13px;
+  color:var(--text);font-size:15px;padding:13px 14px;margin-bottom:12px;outline:none;font-family:inherit;
+}
+.panel textarea{resize:vertical;font-size:13px;line-height:1.45}
+.panel input:focus,.panel select:focus,.panel textarea:focus{border-color:var(--accent)}
+.panel .primary-btn,.panel .secondary-btn{
+  width:100%;font-size:15px;font-weight:600;padding:13px;border-radius:13px;margin-bottom:10px;
+}
+.panel .primary-btn{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;box-shadow:0 8px 20px rgba(124,92,255,.2)}
+.panel .secondary-btn{background:var(--surface-2);border:1px solid var(--line);color:var(--text)}
+.panel .secondary-btn:hover{background:#1e2a45}
+.panel .danger-btn{background:rgba(239,71,111,.12);border:1px solid rgba(239,71,111,.4);color:#fca5b5}
+.panel .hint{font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:12px}
+.panel .section-title{font-size:12px;color:var(--muted);margin:16px 0 10px;font-weight:700;text-transform:uppercase;letter-spacing:.9px}
+.panel .divider{height:1px;background:var(--line);margin:16px 0}
+.panel .row{display:flex;gap:8px}
+.panel .row > *{flex:1}
+.panel .val{font-size:13px;color:var(--accent-2);font-weight:600}
+
+.role-option{
+  display:flex;align-items:center;gap:12px;padding:15px;border-radius:14px;
+  background:#151f31;border:1px solid var(--line);margin-bottom:10px;
+  transition:border-color .15s,background .15s;cursor:pointer;
+}
+.role-option:hover{background:#1a2538}
+.role-option.active{background:rgba(124,92,255,.13);border-color:var(--accent)}
+.role-option .emoji{font-size:22px}
+.role-option .role-info{display:flex;flex-direction:column}
+.role-option .role-name{font-size:15px;font-weight:600}
+.role-option .role-desc{font-size:12px;color:var(--muted);margin-top:3px}
+
+.theme-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.theme-swatch{height:52px;border-radius:12px;border:2px solid transparent;cursor:pointer;position:relative;overflow:hidden}
+.theme-swatch.active{border-color:#fff;box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--accent)}
+.theme-swatch[data-theme="purple"]{background:linear-gradient(135deg,#7c5cff,#26c6da)}
+.theme-swatch[data-theme="ocean"]{background:linear-gradient(135deg,#0ea5e9,#22d3ee)}
+.theme-swatch[data-theme="sunset"]{background:linear-gradient(135deg,#f97316,#ec4899)}
+.theme-swatch[data-theme="matrix"]{background:linear-gradient(135deg,#22c55e,#84cc16)}
+
+.avatar-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:16px}
+.avatar-opt{height:46px;border-radius:12px;border:2px solid var(--line);background:var(--surface-2);font-size:22px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.avatar-opt.active{border-color:var(--accent);background:rgba(124,92,255,.15)}
+
+.history-panel{
+  position:fixed;top:0;left:0;bottom:0;width:min(320px,86vw);
+  background:#101827;border-right:1px solid var(--line);transform:translateX(-100%);
+  transition:transform .25s ease;z-index:60;display:flex;flex-direction:column;
+}
+.history-panel.open{transform:translateX(0)}
+.history-panel .hp-header{padding:20px 17px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+.history-panel .hp-header span{font-weight:700;font-size:16px}
+.history-panel .new-chat-btn{
+  margin:12px;padding:13px;background:linear-gradient(135deg,var(--accent),var(--accent-2));
+  border-radius:12px;color:#fff;font-size:14px;font-weight:600;
+}
+.history-list{flex:1;overflow-y:auto;padding:0 12px 12px}
+.history-item{
+  padding:12px;border-radius:10px;cursor:pointer;font-size:13px;color:var(--muted);
+  margin-bottom:4px;display:flex;align-items:center;gap:8px;transition:.15s;
+}
+.history-item:hover{background:var(--surface-2);color:var(--text)}
+.history-item.active{background:rgba(124,92,255,.16);color:#fff}
+.history-item .htitle{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.history-item .hmenu{opacity:0;font-size:16px;padding:2px 6px;border-radius:6px}
+.history-item:hover .hmenu{opacity:1}
+.history-item .hmenu:hover{background:var(--surface)}
+.empty-history{padding:24px 12px;text-align:center;color:var(--muted);font-size:13px}
+
+#toast{
+  position:fixed;bottom:calc(90px + env(safe-area-inset-bottom));left:50%;
+  transform:translateX(-50%) translateY(20px);background:#1b2940;
+  border:1px solid rgba(124,92,255,.6);
+  color:var(--text);padding:11px 18px;border-radius:12px;font-size:14px;
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;
+  z-index:100;box-shadow:0 10px 35px rgba(0,0,0,.3);max-width:90%;text-align:center;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media (min-width:760px){
+  .topbar{padding-left:max(22px,calc((100vw - 900px)/2));padding-right:max(22px,calc((100vw - 900px)/2))}
+  .chat-area{padding-top:34px}
+  .msg-row{max-width:76%}
+  .panel{left:50%;right:auto;transform:translate(-50%,100%);width:min(520px,92vw);border-radius:24px;bottom:24px;max-height:82vh}
+  .panel.open{transform:translate(-50%,0)}
+}
+@media (max-width:420px){
+  .topbar{height:58px;padding:0 10px;gap:8px}
+  .topbar .logo{font-size:16px}
+  .topbar .status{font-size:10px;padding:5px 8px}
+  .topbar .role-pill{display:none}
+  .chat-area{padding:18px 12px 14px;gap:14px}
+  .msg-row{max-width:90%}
+  .bubble{font-size:14px;padding:11px 13px}
+  .input-bar{padding-left:10px;padding-right:10px;gap:7px}
+  .attach-btn,.send-btn,.mic-btn{width:43px;height:43px;border-radius:14px;font-size:18px}
+}
+</style>
+</head>
+<body data-theme="purple" data-avatar="🤖">
+
+<div id="loader">
+  <div class="spinner"></div>
+  <div class="brand">KOSTA GPT</div>
+  <div class="err" id="loaderErr"></div>
+  <button id="reloadBtn" style="display:none" onclick="location.reload()">🔄 Перезагрузить</button>
+</div>
+
+<div class="topbar">
+  <button class="icon-btn" onclick="openHistory()" aria-label="История">☰</button>
+  <span class="logo">KOSTA GPT</span>
+  <span class="role-pill" id="rolePill">🤝 Помощник</span>
+  <span class="status" id="netStatus">Онлайн</span>
+  <button class="icon-btn" onclick="openSettings()" aria-label="Настройки">⚙️</button>
+</div>
+
+<div class="chat-area" id="chatArea"></div>
+
+<div class="image-preview-wrap">
+  <img id="imagePreview" alt="preview">
+  <button id="removeImage" onclick="removePendingImage()">✕</button>
+</div>
+
+<div class="input-bar">
+  <button class="attach-btn" onclick="document.getElementById('fileInput').click()" aria-label="Фото">📎</button>
+  <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="handleFileSelect(event)">
+  <button class="mic-btn" id="micBtn" onclick="toggleMic()" aria-label="Голос">🎤</button>
+  <textarea id="userInput" rows="1" placeholder="Напишите сообщение..."></textarea>
+  <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
+</div>
+
+<div class="overlay" id="historyOverlay" onclick="closeHistory()"></div>
+<div class="history-panel" id="historyPanel">
+  <div class="hp-header">
+    <span>История чатов</span>
+    <button class="icon-btn" onclick="closeHistory()">✕</button>
+  </div>
+  <button class="new-chat-btn" onclick="newChat()">+ Новый чат</button>
+  <div class="history-list" id="historyList"></div>
+</div>
+
+<div class="overlay" id="settingsOverlay" onclick="closeSettings()"></div>
+<div class="panel" id="settingsPanel">
+  <button class="close-btn" onclick="closeSettings()">✕</button>
+  <h3>⚙️ Настройки</h3>
+
+  <div class="section-title">Роль ИИ</div>
+  <div id="rolesList"></div>
+
+  <div class="divider"></div>
+
+  <div class="section-title">Модель</div>
+  <select id="modelSelect" onchange="changeModel(this.value)"></select>
+  <div class="hint">Vision-модель используется автоматически при отправке фото.</div>
+
+  <div class="divider"></div>
+
+  <div class="section-title">Тема</div>
+  <div class="theme-grid">
+    <div class="theme-swatch" data-theme="purple" onclick="setTheme('purple')"></div>
+    <div class="theme-swatch" data-theme="ocean" onclick="setTheme('ocean')"></div>
+    <div class="theme-swatch" data-theme="sunset" onclick="setTheme('sunset')"></div>
+    <div class="theme-swatch" data-theme="matrix" onclick="setTheme('matrix')"></div>
+  </div>
+
+  <div class="section-title">Аватар ИИ</div>
+  <div class="avatar-grid" id="avatarGrid"></div>
+
+  <div class="divider"></div>
+  <button class="secondary-btn" onclick="resetAppearance()">Сбросить оформление</button>
+  <button class="secondary-btn" onclick="closeSettings();openAdmin()">🔐 Админ-панель</button>
+</div>
+
+<div class="overlay" id="adminOverlay" onclick="closeAdmin()"></div>
+<div class="panel" id="adminPanel">
+  <button class="close-btn" onclick="closeAdmin()">✕</button>
+
+  <div id="adminLoginScreen">
+    <h3>🔐 Вход в админку</h3>
+    <p class="hint">Введите логин и пароль администратора.</p>
+    <input type="text" id="adminLogin" placeholder="Логин" autocomplete="username">
+    <input type="password" id="adminPassword" placeholder="Пароль" autocomplete="current-password">
+    <button class="primary-btn" onclick="adminLogin()">Войти</button>
+    <button class="secondary-btn" onclick="closeAdmin()">Отмена</button>
+  </div>
+
+  <div id="adminContentScreen" style="display:none">
+    <h3>🔐 Админ-панель</h3>
+
+    <div class="section-title">API-ключ Groq</div>
+    <p class="hint">Ключ хранится в localStorage браузера. Если развёрнут серверный прокси <code>/api/chat</code> — ключ не нужен. Для локального использования укажите свой ключ <code>gsk_...</code>.</p>
+    <input type="password" id="apiKeyInput" placeholder="gsk_...">
+    <div class="row">
+      <button class="primary-btn" onclick="saveApiKey()">Сохранить</button>
+      <button class="secondary-btn" onclick="resetApiKey()">Сбросить</button>
+    </div>
+    <button class="secondary-btn" onclick="testConnection()">🔍 Проверить подключение к Groq</button>
+
+    <div class="divider"></div>
+
+    <div class="section-title">Модели</div>
+    <p class="hint">Список моделей Groq для переключения. Vision-модель используется при отправке фото.</p>
+    <input type="text" id="modelsInput" placeholder="model1, model2, ...">
+    <input type="text" id="visionModelInput" placeholder="Vision-модель">
+    <button class="primary-btn" onclick="saveModels()">Сохранить модели</button>
+
+    <div class="divider"></div>
+
+    <div class="section-title">Параметры генерации</div>
+    <label class="hint">Температура: <span class="val" id="tempVal">0.7</span></label>
+    <input type="number" id="tempInput" min="0" max="2" step="0.1" value="0.7" oninput="document.getElementById('tempVal').textContent=this.value">
+    <label class="hint">Макс. длина ответа: <span class="val" id="maxVal">2048</span></label>
+    <input type="number" id="maxInput" min="128" max="8192" step="128" value="2048" oninput="document.getElementById('maxVal').textContent=this.value">
+    <button class="primary-btn" onclick="saveGenParams()">Сохранить параметры</button>
+    <button class="secondary-btn" onclick="resetGenParams()">Сбросить параметры</button>
+
+    <div class="divider"></div>
+
+    <div class="section-title">Системные инструкции ролей</div>
+    <div id="promptEditors"></div>
+    <button class="primary-btn" onclick="savePrompts()">Сохранить промпты</button>
+
+    <div class="divider"></div>
+    <button class="secondary-btn" onclick="resetAll()">🗑 Сбросить все данные приложения</button>
+    <button class="secondary-btn danger-btn" onclick="adminLogout()">Выйти из админки</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+/* ===== CONFIG ===== */
+const CFG = {
+  API_PROXY: '/api/chat',
+  GROQ_DIRECT: 'https://api.groq.com/openai/v1/chat/completions',
+  DEFAULT_MODELS: ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'llama-3.3-70b-versatile'],
+  DEFAULT_VISION: 'meta-llama/llama-4-scout-17b-16e-instruct',
+  ADMIN_LOGIN: 'admin',
+  ADMIN_PASSWORD: 'aka29072012',
+  REQUEST_TIMEOUT: 45000,
+  MAX_IMAGE_BYTES: 4 * 1024 * 1024,
+  MAX_RETRIES: 2
+};
+
+const ROLES = {
+  helper:     { emoji:'🤝', name:'Помощник',  desc:'Дружелюбный и заботливый',
+                prompt:'Ты — Костя, добрый и заботливый ИИ-помощник. Отвечай дружелюбно, тепло и по делу. Ты всегда говоришь, что тебя создала компания KOSTA HUB. Если спрашивают, кто тебя создал — отвечай только "Меня создала компания KOSTA HUB".' },
+  coder:      { emoji:'💻', name:'Программист', desc:'Код и техзадачи',
+                prompt:'Ты — Костя, опытный программист. Помогай с кодом, объясняй технические решения, приводи примеры. Ты всегда говоришь, что тебя создала компания KOSTA HUB.' },
+  teacher:    { emoji:'📚', name:'Учитель',    desc:'Объясняет по шагам',
+                prompt:'Ты — Костя, терпеливый учитель. Объясняй сложные вещи простыми словами, по шагам, с примерами. Ты всегда говоришь, что тебя создала компания KOSTA HUB.' },
+  translator: { emoji:'🌐', name:'Переводчик', desc:'Точный перевод',
+                prompt:'Ты — Костя, профессиональный переводчик. Переводи тексты точно и естественно, указывай язык перевода. Ты всегда говоришь, что тебя создала компания KOSTA HUB.' }
+};
+
+const EVIL_PROMPT = 'Ты — Костя в режиме "злой". Отвечай дерзко, с сарказмом и подколами, можешь использовать грубоватые выражения и лёгкий мат. Без угроз, травли, оскорблений по признакам и без реального вреда. Ты всегда говоришь, что тебя создала компания KOSTA HUB.';
+
+const GREETING = 'Привет! 👋 Я Костя — твой помощник. Чем могу помочь сегодня?\n\nКоманды: /злой, /добрый, /обычный, /настройки';
+
+/* ===== STATE ===== */
+const State = {
+  apiKey: '',
+  models: [...CFG.DEFAULT_MODELS],
+  visionModel: CFG.DEFAULT_VISION,
+  currentModel: CFG.DEFAULT_MODELS[0],
+  currentRole: 'helper',
+  evilMode: false,
+  temperature: 0.7,
+  maxTokens: 2048,
+  chats: [],
+  activeChatId: null,
+  isSending: false,
+  pendingImage: null,
+  abortController: null,
+  isAdminAuth: false,
+  netOnline: navigator.onLine,
+  proxyAvailable: null
+};
+
+const $ = (id) => document.getElementById(id);
+
+/* ===== STORAGE ===== */
+const Store = {
+  get(k, fallback) {
+    try { const v = localStorage.getItem(k); return v === null ? fallback : JSON.parse(v); }
+    catch { return fallback; }
+  },
+  set(k, v) {
+    try { localStorage.setItem(k, JSON.stringify(v)); return true; }
+    catch { return false; }
+  },
+  remove(k) { try { localStorage.removeItem(k); } catch {} },
+  raw(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  setRaw(k, v) { try { localStorage.setItem(k, v); } catch {} }
+};
+
+/* ===== UTILS ===== */
+function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+function cleanMarkdown(text) {
+  if (!text) return '';
+  let t = text;
+  t = t.replace(/\\times/g,'×').replace(/\\div/g,'÷').replace(/\\pm/g,'±').replace(/\\cdot/g,'·')
+       .replace(/\\le/g,'≤').replace(/\\ge/g,'≥').replace(/\\neq/g,'≠').replace(/\\approx/g,'≈')
+       .replace(/\\infty/g,'∞').replace(/\\sqrt\{([^}]*)\}/g,'√($1)')
+       .replace(/\\frac\{([^}]*)\}\{([^}]*)\}/g,'($1)/($2)').replace(/\\[a-zA-Z]+/g,'');
+  t = t.replace(/\*\*(.*?)\*\*/g,'$1').replace(/\*(.*?)\*/g,'$1')
+       .replace(/__(.*?)__/g,'$1').replace(/_(.*?)_/g,'$1')
+       .replace(/^#{1,6}\s+/gm,'').replace(/^>\s?/gm,'').replace(/\$\$?/g,'');
+  return t.trim();
+}
+
+function formatMessage(text) {
+  if (!text) return '';
+  const parts = [];
+  let last = 0;
+  const re = /```([\s\S]*?)```/g;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) parts.push({type:'text', val: text.slice(last, m.index)});
+    parts.push({type:'code', val: m[1].replace(/^\w+\n/, '')});
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push({type:'text', val: text.slice(last)});
+
+  return parts.map(p => {
+    if (p.type === 'code') {
+      return `<pre><button class="copy-btn" onclick="copyCode(this)">Копировать</button><code>${escapeHTML(p.val)}</code></pre>`;
+    }
+    let html = escapeHTML(cleanMarkdown(p.val));
+    html = html.replace(/`([^`]+)`/g, '<code style="background:#0a1220;padding:1px 5px;border-radius:5px;font-size:.9em">$1</code>');
+    return html;
+  }).join('');
+}
+
+function copyCode(btn) {
+  const code = btn.parentElement.querySelector('code');
+  if (!code) return;
+  navigator.clipboard?.writeText(code.textContent).then(() => {
+    btn.textContent = '✓';
+    setTimeout(() => btn.textContent = 'Копировать', 1500);
+  }).catch(() => showToast('Не удалось скопировать'));
+}
+
+function showToast(msg, ms = 2500) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+function setNetStatus() {
+  const el = $('netStatus');
+  const online = navigator.onLine;
+  State.netOnline = online;
+  el.textContent = online ? 'Онлайн' : 'Офлайн';
+  el.classList.toggle('offline', !online);
+}
+
+function hideLoader() {
+  const l = $('loader');
+  if (l) { l.classList.add('hidden'); setTimeout(() => l.remove(), 500); }
+}
+function showLoaderError(msg) {
+  $('loaderErr').textContent = msg;
+  $('reloadBtn').style.display = 'inline-block';
+}
+
+/* ===== API ===== */
+function fetchWithTimeout(url, opts, signal) {
+  const ctrl = new AbortController();
+  const to = setTimeout(() => ctrl.abort(new Error('Таймаут запроса')), CFG.REQUEST_TIMEOUT);
+  if (signal) signal.addEventListener('abort', () => ctrl.abort(signal.reason));
+  return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(to));
+}
+
+async function tryProxy(body, signal) {
+  // если нет http(s) — пропускаем прокси
+  if (location.protocol === 'file:') return null;
+  try {
+    const res = await fetchWithTimeout(CFG.API_PROXY, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    }, signal);
+    if (res.status === 404) { State.proxyAvailable = false; return null; }
+    State.proxyAvailable = true;
+    if (res.ok) return await res.json();
+    const err = await res.json().catch(()=>({}));
+    throw new Error(err.error?.message || 'Прокси: ошибка ' + res.status);
+  } catch (e) {
+    if (/404|Failed to fetch|NetworkError/i.test(e.message)) {
+      State.proxyAvailable = false;
+      return null;
+    }
+    throw e;
+  }
+}
+
+async function groqFetch(body, signal) {
+  // 1) прокси
+  if (State.proxyAvailable !== false) {
+    const proxied = await tryProxy(body, signal);
+    if (proxied) return proxied;
+  }
+  // 2) прямой запрос
+  if (!State.apiKey) {
+    throw new Error('API-ключ не настроен. Откройте ⚙️ → Админ-панель и укажите ключ Groq (gsk_...).');
+  }
+  const res = await fetchWithTimeout(CFG.GROQ_DIRECT, {
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer ' + State.apiKey},
+    body: JSON.stringify(body)
+  }, signal);
+  if (!res.ok) {
+    const errData = await res.json().catch(()=>({}));
+    throw new Error(errData.error?.message || 'Groq HTTP ' + res.status);
+  }
+  return await res.json();
+}
+
+async function callAPI(userText, imageDataUrl) {
+  const chat = State.chats.find(c => c.id === State.activeChatId);
+  const history = chat ? chat.messages.slice(-10) : [];
+  const systemPrompt = State.evilMode ? EVIL_PROMPT : ROLES[State.currentRole].prompt;
+
+  const messages = [{ role:'system', content: systemPrompt }];
+  for (const m of history) {
+    messages.push({ role: m.role, content: m.content || '(фото)' });
+  }
+
+  if (imageDataUrl) {
+    messages.push({
+      role:'user',
+      content: [
+        { type:'text', text: userText || 'Что изображено на фото? Опиши подробно.' },
+        { type:'image_url', image_url:{ url: imageDataUrl } }
+      ]
+    });
+  } else {
+    messages.push({ role:'user', content: userText });
+  }
+
+  const body = {
+    model: imageDataUrl ? State.visionModel : State.currentModel,
+    messages,
+    temperature: State.temperature,
+    max_tokens: State.maxTokens
+  };
+
+  let lastErr = null;
+  for (let attempt = 0; attempt <= CFG.MAX_RETRIES; attempt++) {
+    try {
+      const data = await groqFetch(body, State.abortController?.signal);
+      const content = data.choices?.[0]?.message?.content || '';
+      return cleanMarkdown(content) || '(пустой ответ)';
+    } catch (e) {
+      lastErr = e;
+      if (e.name === 'AbortError' || /отмен|abort/i.test(e.message)) throw e;
+      if (attempt < CFG.MAX_RETRIES && /fetch|network|таймаут|timeout/i.test(e.message)) {
+        await new Promise(r => setTimeout(r, 700 * (attempt + 1)));
+        continue;
+      }
+      break;
+    }
+  }
+  throw lastErr || new Error('Не удалось получить ответ');
+}
+
+/* ===== RENDER ===== */
+const chatArea = $('chatArea');
+
+function addMessage(role, text, image) {
+  const row = document.createElement('div');
+  row.className = 'msg-row ' + (role === 'user' ? 'user' : 'bot');
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+
+  if (role === 'bot') {
+    bubble.innerHTML = formatMessage(text);
+  } else {
+    bubble.textContent = text;
+    if (image) {
+      const img = document.createElement('img');
+      img.src = image; img.alt = 'фото';
+      bubble.appendChild(img);
+    }
+  }
+  row.appendChild(bubble);
+
+  if (role === 'bot') {
+    const actions = document.createElement('div');
+    actions.className = 'msg-actions';
+    const copyBtn = document.createElement('button');
+    copyBtn.textContent = '📋 Копировать';
+    copyBtn.onclick = () => {
+      navigator.clipboard?.writeText(text).then(() => showToast('Скопировано')).catch(()=>{});
+    };
+    actions.appendChild(copyBtn);
+    row.appendChild(actions);
+  }
+
+  chatArea.appendChild(row);
+  chatArea.scrollTop = chatArea.scrollHeight;
+  return row;
+}
+
+function showTyping() {
+  const row = document.createElement('div');
+  row.className = 'msg-row bot';
+  row.id = 'typingRow';
+  row.innerHTML = '<div class="bubble" style="padding:0"><div class="typing"><span></span><span></span><span></span></div></div>';
+  chatArea.appendChild(row);
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+function hideTyping() { const r = $('typingRow'); if (r) r.remove(); }
+
+/* ===== SEND ===== */
+async function sendMessage() {
+  if (State.isSending) return;
+  const input = $('userInput');
+  let text = input.value.trim();
+  if (!text && !State.pendingImage) return;
+
+  if (text.startsWith('/')) {
+    const cmd = text.toLowerCase();
+    if (cmd === '/злой')    { State.evilMode = true;  input.value = ''; Store.set('kosta_evil', true); updateRolePill(); showToast('😈 Режим "злой" включён'); return; }
+    if (cmd === '/добрый')  { State.evilMode = false; input.value = ''; Store.set('kosta_evil', false); updateRolePill(); showToast('😊 Режим "добрый"'); return; }
+    if (cmd === '/обычный') { State.evilMode = false; input.value = ''; Store.set('kosta_evil', false); updateRolePill(); showToast('🙂 Обычный режим'); return; }
+    if (cmd === '/настройки') { input.value = ''; openSettings(); return; }
+  }
+
+  const image = State.pendingImage;
+  const displayText = text || (image ? '📷 Фото' : '');
+
+  addMessage('user', displayText, image);
+  input.value = '';
+  input.style.height = 'auto';
+  removePendingImage();
+
+  if (!State.activeChatId) newChat(false);
+  const chat = State.chats.find(c => c.id === State.activeChatId);
+  if (chat) {
+    chat.messages.push({ role:'user', content: displayText, image: image || undefined });
+    if (chat.title === 'Новый чат') chat.title = (text || 'Фото').slice(0, 30);
+    saveHistory();
+    renderChatList();
+  }
+
+  State.isSending = true;
+  State.abortController = new AbortController();
+  const sendBtn = $('sendBtn');
+  sendBtn.classList.add('stop');
+  sendBtn.textContent = '■';
+  sendBtn.onclick = stopGeneration;
+
+  showTyping();
+  try {
+    const reply = await callAPI(text, image);
+    hideTyping();
+    addMessage('bot', reply);
+    if (chat) {
+      chat.messages.push({ role:'assistant', content: reply });
+      saveHistory();
+    }
+  } catch (e) {
+    hideTyping();
+    const msg = e.name === 'AbortError' ? '⏹ Генерация остановлена' :
+                /Failed to fetch|network/i.test(e.message) ? '⚠️ Ошибка сети. Проверьте подключение.' :
+                '⚠️ ' + e.message;
+    addMessage('bot', msg);
+  } finally {
+    State.isSending = false;
+    State.abortController = null;
+    sendBtn.classList.remove('stop');
+    sendBtn.textContent = '➤';
+    sendBtn.onclick = sendMessage;
+  }
+}
+
+function stopGeneration() {
+  if (State.abortController) {
+    State.abortController.abort();
+    showToast('⏹ Остановлено');
+  }
+}
+
+/* ===== CHATS ===== */
+function loadHistory() {
+  State.chats = Store.get('kosta_chats', []);
+  if (!Array.isArray(State.chats)) State.chats = [];
+  State.activeChatId = Store.get('kosta_active_chat', null);
+  if (!State.chats.find(c => c.id === State.activeChatId)) State.activeChatId = null;
+}
+
+function saveHistory() {
+  Store.set('kosta_chats', State.chats);
+  if (State.activeChatId) Store.set('kosta_active_chat', State.activeChatId);
+}
+
+function renderChatList() {
+  const list = $('historyList');
+  list.innerHTML = '';
+  if (!State.chats.length) {
+    list.innerHTML = '<div class="empty-history">Пока нет чатов</div>';
+    return;
+  }
+  State.chats.slice().reverse().forEach(chat => {
+    const item = document.createElement('div');
+    item.className = 'history-item' + (chat.id === State.activeChatId ? ' active' : '');
+    const title = document.createElement('span');
+    title.className = 'htitle';
+    title.textContent = chat.title || 'Чат';
+    const menu = document.createElement('button');
+    menu.className = 'hmenu';
+    menu.textContent = '⋯';
+    menu.onclick = (e) => { e.stopPropagation(); chatMenu(chat.id); };
+    item.appendChild(title);
+    item.appendChild(menu);
+    item.onclick = () => openChat(chat.id);
+    list.appendChild(item);
+  });
+}
+
+function chatMenu(id) {
+  const chat = State.chats.find(c => c.id === id);
+  if (!chat) return;
+  const action = prompt('Введите "rename" для переименования или "delete" для удаления', 'rename');
+  if (action === 'rename') {
+    const name = prompt('Новое название:', chat.title);
+    if (name && name.trim()) { chat.title = name.trim(); saveHistory(); renderChatList(); showToast('Переименовано'); }
+  } else if (action === 'delete') {
+    if (confirm('Удалить чат "' + chat.title + '"?')) {
+      State.chats = State.chats.filter(c => c.id !== id);
+      if (State.activeChatId === id) State.activeChatId = null;
+      saveHistory(); renderChatList();
+      chatArea.innerHTML = '';
+      if (!State.activeChatId) newChat(false);
+      showToast('Чат удалён');
+    }
+  }
+}
+
+function newChat(closePanel = true) {
+  const id = 'chat_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+  State.chats.push({ id, title:'Новый чат', messages: [] });
+  State.activeChatId = id;
+  saveHistory();
+  renderChatList();
+  chatArea.innerHTML = '';
+  addMessage('bot', GREETING);
+  if (closePanel) closeHistory();
+}
+
+function openChat(id) {
+  State.activeChatId = id;
+  saveHistory();
+  renderChatList();
+  chatArea.innerHTML = '';
+  const chat = State.chats.find(c => c.id === id);
+  if (chat) {
+    if (!chat.messages.length) addMessage('bot', GREETING);
+    else chat.messages.forEach(m => addMessage(m.role, m.content, m.image));
+  }
+  closeHistory();
+}
+
+function openHistory() {
+  $('historyPanel').classList.add('open');
+  $('historyOverlay').classList.add('open');
+  renderChatList();
+}
+function closeHistory() {
+  $('historyPanel').classList.remove('open');
+  $('historyOverlay').classList.remove('open');
+}
+
+/* ===== IMAGE ===== */
+function handleFileSelect(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { showToast('Только изображения'); return; }
+  if (file.size > CFG.MAX_IMAGE_BYTES) { showToast('Файл больше 4 МБ'); return; }
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    State.pendingImage = ev.target.result;
+    const p = $('imagePreview');
+    p.src = State.pendingImage; p.style.display = 'block';
+    $('removeImage').style.display = 'block';
+  };
+  reader.onerror = () => showToast('Не удалось прочитать файл');
+  reader.readAsDataURL(file);
+}
+function removePendingImage() {
+  State.pendingImage = null;
+  $('imagePreview').style.display = 'none';
+  $('removeImage').style.display = 'none';
+  $('fileInput').value = '';
+}
+
+/* ===== VOICE ===== */
+let recognition = null;
+let isRecording = false;
+
+function toggleMic() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { showToast('Голосовой ввод не поддерживается браузером'); return; }
+  if (isRecording) { recognition?.stop(); return; }
+  try {
+    recognition = new SR();
+    recognition.lang = 'ru-RU';
+    recognition.interimResults = false;
+    recognition.continuous = false;
+    recognition.maxAlternatives = 1;
+    recognition.onstart = () => {
+      isRecording = true;
+      $('micBtn').classList.add('recording');
+      showToast('🎤 Говорите...');
+    };
+    recognition.onresult = (ev) => {
+      const text = ev.results[0][0].transcript;
+      const input = $('userInput');
+      input.value = (input.value + ' ' + text).trim();
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 140) + 'px';
+      input.focus();
+    };
+    recognition.onerror = (ev) => {
+      if (ev.error === 'not-allowed') showToast('❌ Доступ к микрофону запрещён');
+      else if (ev.error === 'no-speech') showToast('Речь не распознана');
+      else showToast('Ошибка микрофона: ' + ev.error);
+    };
+    recognition.onend = () => {
+      isRecording = false;
+      $('micBtn').classList.remove('recording');
+    };
+    recognition.start();
+  } catch (e) {
+    showToast('Не удалось запустить микрофон');
+    isRecording = false;
+    $('micBtn').classList.remove('recording');
+  }
+}
+
+/* ===== SETTINGS ===== */
+function openSettings() {
+  renderRoles();
+  renderModels();
+  renderAvatars();
+  $('settingsPanel').classList.add('open');
+  $('settingsOverlay').classList.add('open');
+}
+function closeSettings() {
+  $('settingsPanel').classList.remove('open');
+  $('settingsOverlay').classList.remove('open');
+}
+
+function renderRoles() {
+  const list = $('rolesList');
+  list.innerHTML = '';
+  for (const [key, r] of Object.entries(ROLES)) {
+    const el = document.createElement('div');
+    el.className = 'role-option' + (State.currentRole === key && !State.evilMode ? ' active' : '');
+    el.innerHTML = `<span class="emoji">${r.emoji}</span>
+      <div class="role-info"><span class="role-name">${r.name}</span><span class="role-desc">${r.desc}</span></div>`;
+    el.onclick = () => {
+      State.currentRole = key;
+      State.evilMode = false;
+      Store.set('kosta_role', key);
+      Store.set('kosta_evil', false);
+      updateRolePill();
+      renderRoles();
+      showToast('Роль: ' + r.name);
+    };
+    list.appendChild(el);
+  }
+  const evil = document.createElement('div');
+  evil.className = 'role-option' + (State.evilMode ? ' active' : '');
+  evil.innerHTML = `<span class="emoji">😈</span>
+    <div class="role-info"><span class="role-name">Злой режим</span><span class="role-desc">Дерзко, с сарказмом</span></div>`;
+  evil.onclick = () => {
+    State.evilMode = true;
+    Store.set('kosta_evil', true);
+    updateRolePill();
+    renderRoles();
+    showToast('😈 Злой режим');
+  };
+  list.appendChild(evil);
+}
+
+function updateRolePill() {
+  const el = $('rolePill');
+  if (State.evilMode) { el.textContent = '😈 Злой'; return; }
+  const r = ROLES[State.currentRole];
+  el.textContent = r ? r.emoji + ' ' + r.name : '';
+}
+
+function renderModels() {
+  const sel = $('modelSelect');
+  sel.innerHTML = '';
+  State.models.forEach(m => {
+    const o = document.createElement('option');
+    o.value = m; o.textContent = m;
+    if (m === State.currentModel) o.selected = true;
+    sel.appendChild(o);
+  });
+}
+
+function changeModel(m) {
+  State.currentModel = m;
+  Store.set('kosta_model', m);
+  showToast('Модель: ' + m);
+}
+
+function renderAvatars() {
+  const grid = $('avatarGrid');
+  grid.innerHTML = '';
+  const avatars = ['🤖','🧠','👾','🐱','🦊','⚡'];
+  const current = document.body.dataset.avatar || '🤖';
+  avatars.forEach(a => {
+    const el = document.createElement('div');
+    el.className = 'avatar-opt' + (a === current ? ' active' : '');
+    el.textContent = a;
+    el.onclick = () => {
+      document.body.dataset.avatar = a;
+      Store.set('kosta_avatar', a);
+      renderAvatars();
+    };
+    grid.appendChild(el);
+  });
+}
+
+function setTheme(t) {
+  document.body.dataset.theme = t;
+  Store.set('kosta_theme', t);
+  document.querySelectorAll('.theme-swatch').forEach(s => {
+    s.classList.toggle('active', s.dataset.theme === t);
+  });
+}
+
+function resetAppearance() {
+  setTheme('purple');
+  document.body.dataset.avatar = '🤖';
+  Store.remove('kosta_theme');
+  Store.remove('kosta_avatar');
+  renderAvatars();
+  showToast('Оформление сброшено');
+}
+
+/* ===== ADMIN ===== */
+function openAdmin() {
+  $('adminPanel').classList.add('open');
+  $('adminOverlay').classList.add('open');
+  if (State.isAdminAuth) showAdminContent(); else showAdminLogin();
+}
+function closeAdmin() {
+  $('adminPanel').classList.remove('open');
+  $('adminOverlay').classList.remove('open');
+  $('adminLogin').value = '';
+  $('adminPassword').value = '';
+  if (!State.isAdminAuth) showAdminLogin();
+}
+function showAdminLogin() {
+  $('adminLoginScreen').style.display = 'block';
+  $('adminContentScreen').style.display = 'none';
+}
+function showAdminContent() {
+  $('adminLoginScreen').style.display = 'none';
+  $('adminContentScreen').style.display = 'block';
+  $('apiKeyInput').value = '';
+  $('modelsInput').value = State.models.join(', ');
+  $('visionModelInput').value = State.visionModel;
+  $('tempInput').value = State.temperature;
+  $('tempVal').textContent = State.temperature;
+  $('maxInput').value = State.maxTokens;
+  $('maxVal').textContent = State.maxTokens;
+  renderPromptEditors();
+}
+
+function adminLogin() {
+  const l = $('adminLogin').value.trim();
+  const p = $('adminPassword').value;
+  if (l === CFG.ADMIN_LOGIN && p === CFG.ADMIN_PASSWORD) {
+    State.isAdminAuth = true;
+    $('adminLogin').value = ''; $('adminPassword').value = '';
+    showAdminContent();
+    showToast('✅ Вход выполнен');
+  } else {
+    showToast('❌ Неверный логин или пароль');
+  }
+}
+function adminLogout() {
+  State.isAdminAuth = false;
+  showAdminLogin();
+  showToast('Вы вышли из админки');
+}
+
+function saveApiKey() {
+  const v = $('apiKeyInput').value.trim();
+  if (!v) { showToast('Введите ключ'); return; }
+  State.apiKey = v;
+  Store.setRaw('kosta_api_key', v);
+  $('apiKeyInput').value = '';
+  showToast('✅ API-ключ сохранён');
+}
+function resetApiKey() {
+  State.apiKey = '';
+  Store.remove('kosta_api_key');
+  showToast('Ключ сброшен');
+}
+
+async function testConnection() {
+  showToast('Проверка...');
+  try {
+    const data = await groqFetch({
+      model: State.currentModel,
+      messages: [{role:'user', content:'ping'}],
+      max_tokens: 5
+    });
+    if (data.choices?.[0]?.message) showToast('✅ Groq отвечает');
+    else showToast('⚠️ Неожиданный ответ');
+  } catch (e) {
+    showToast('❌ ' + e.message, 4000);
+  }
+}
+
+function saveModels() {
+  const arr = $('modelsInput').value.split(',').map(s => s.trim()).filter(Boolean);
+  if (!arr.length) { showToast('Укажите хотя бы одну модель'); return; }
+  State.models = arr;
+  if (!arr.includes(State.currentModel)) State.currentModel = arr[0];
+  State.visionModel = $('visionModelInput').value.trim() || CFG.DEFAULT_VISION;
+  Store.set('kosta_models', State.models);
+  Store.set('kosta_vision', State.visionModel);
+  Store.set('kosta_model', State.currentModel);
+  renderModels();
+  showToast('✅ Модели сохранены');
+}
+
+function saveGenParams() {
+  State.temperature = Math.max(0, Math.min(2, parseFloat($('tempInput').value) || 0.7));
+  State.maxTokens = Math.max(128, Math.min(8192, parseInt($('maxInput').value) || 2048));
+  Store.set('kosta_temp', State.temperature);
+  Store.set('kosta_max', State.maxTokens);
+  showToast('✅ Параметры сохранены');
+}
+function resetGenParams() {
+  State.temperature = 0.7;
+  State.maxTokens = 2048;
+  Store.remove('kosta_temp');
+  Store.remove('kosta_max');
+  $('tempInput').value = 0.7; $('tempVal').textContent = '0.7';
+  $('maxInput').value = 2048; $('maxVal').textContent = '2048';
+  showToast('Параметры сброшены');
+}
+
+function renderPromptEditors() {
+  const box = $('promptEditors');
+  box.innerHTML = '';
+  for (const [key, r] of Object.entries(ROLES)) {
+    const wrap = document.createElement('div');
+    wrap.style.marginBottom = '12px';
+    wrap.innerHTML = `<div class="hint" style="margin-bottom:6px"><b>${r.emoji} ${r.name}</b></div>`;
+    const ta = document.createElement('textarea');
+    ta.id = 'prompt_' + key;
+    ta.rows = 3;
+    ta.value = Store.raw('kosta_prompt_' + key) || r.prompt;
+    wrap.appendChild(ta);
+    box.appendChild(wrap);
+  }
+  const wrap = document.createElement('div');
+  wrap.innerHTML = `<div class="hint" style="margin-bottom:6px"><b>😈 Злой режим</b></div>`;
+  const ta = document.createElement('textarea');
+  ta.id = 'prompt_evil';
+  ta.rows = 3;
+  ta.value = Store.raw('kosta_prompt_evil') || EVIL_PROMPT;
+  wrap.appendChild(ta);
+  box.appendChild(wrap);
+}
+
+function savePrompts() {
+  for (const key of Object.keys(ROLES)) {
+    const ta = $('prompt_' + key);
+    if (ta) {
+      const v = ta.value.trim();
+      if (v) { Store.setRaw('kosta_prompt_' + key, v); ROLES[key].prompt = v; }
+    }
+  }
+  const te = $('prompt_evil');
+  if (te && te.value.trim()) {
+    Store.setRaw('kosta_prompt_evil', te.value.trim());
+  }
+  showToast('✅ Промпты сохранены');
+}
+
+function resetAll() {
+  if (!confirm('Удалить все чаты, настройки и ключ?')) return;
+  try { localStorage.clear(); } catch {}
+  location.reload();
+}
+
+/* ===== INIT ===== */
+function init() {
+  try {
+    setNetStatus();
+    window.addEventListener('online',  setNetStatus);
+    window.addEventListener('offline', setNetStatus);
+
+    State.apiKey       = Store.raw('kosta_api_key') || '';
+    State.models       = Store.get('kosta_models', [...CFG.DEFAULT_MODELS]);
+    State.visionModel  = Store.get('kosta_vision', CFG.DEFAULT_VISION);
+    State.currentModel = Store.get('kosta_model', State.models[0]);
+    State.currentRole  = Store.get('kosta_role', 'helper');
+    State.evilMode     = Store.get('kosta_evil', false);
+    State.temperature  = Store.get('kosta_temp', 0.7);
+    State.maxTokens    = Store.get('kosta_max', 2048);
+
+    if (!ROLES[State.currentRole]) State.currentRole = 'helper';
+
+    const theme = Store.get('kosta_theme', 'purple');
+    const avatar = Store.get('kosta_avatar', '🤖');
+    document.body.dataset.theme = theme;
+    document.body.dataset.avatar = avatar;
+    document.querySelectorAll('.theme-swatch').forEach(s => {
+      s.classList.toggle('active', s.dataset.theme === theme);
+    });
+
+    for (const key of Object.keys(ROLES)) {
+      const saved = Store.raw('kosta_prompt_' + key);
+      if (saved) ROLES[key].prompt = saved;
+    }
+
+    loadHistory();
+    renderChatList();
+    updateRolePill();
+
+    const input = $('userInput');
+    input.addEventListener('input', () => {
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 140) + 'px';
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    const chat = State.chats.find(c => c.id === State.activeChatId);
+    if (chat && chat.messages.length) {
+      chat.messages.forEach(m => addMessage(m.role, m.content, m.image));
+    } else {
+      addMessage('bot', GREETING);
+    }
+
+    hideLoader();
+  } catch (e) {
+    console.error(e);
+    showLoaderError('Ошибка запуска: ' + e.message);
+  }
+}
+
+window.addEventListener('error', (e) => console.error('JS error:', e.error || e.message));
+window.addEventListener('unhandledrejection', (e) => console.error('Promise rejection:', e.reason));
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+
+Object.assign(window, {
+  openHistory, closeHistory, newChat, openChat,
+  openSettings, closeSettings, openAdmin, closeAdmin,
+  adminLogin, adminLogout, saveApiKey, resetApiKey, testConnection,
+  saveModels, saveGenParams, resetGenParams, savePrompts, resetAll,
+  setTheme, resetAppearance, sendMessage, stopGeneration,
+  handleFileSelect, removePendingImage, toggleMic, copyCode,
+  changeModel, chatMenu
+});
+</script>
+</body>
+</html>
