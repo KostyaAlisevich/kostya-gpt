@@ -5,7 +5,7 @@ module.exports = {
   ADMIN_LOGIN: 'admin',
   ADMIN_PASSWORD: 'aka29072012',
   // --- MySQL (необязательно: пока MYSQL_HOST пустой, сайт работает без базы) ---
-  MYSQL_HOST: 'localhost',        // например: gateway01.eu-central-1.prod.aws.tidbcloud.com
+  MYSQL_HOST: 'isphg.hostgta.net',        // например: gateway01.eu-central-1.prod.aws.tidbcloud.com
   MYSQL_PORT: 3306,
   MYSQL_USER: 'whg125718_kosta',
   MYSQL_PASSWORD: 'oEDchyw05Ex8XE8u',
