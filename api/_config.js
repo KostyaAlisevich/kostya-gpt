@@ -12,7 +12,7 @@ module.exports = {
   MYSQL_DATABASE: '',
   MYSQL_SSL: 'verify',   // 'verify' — шифрование с проверкой (по умолчанию), 'noverify' — без проверки сертификата, 'off' — без шифрования
   // --- Мост к MySQL на обычном хостинге (если база недоступна напрямую). Заполните ВМЕСТО MYSQL_* ---
-  BRIDGE_URL: '',        // например: https://ваш-сайт.ru/kosta-db.php
+  BRIDGE_URL: 'https://kosta-gpt.samp.date/kosta-db.php',        // например: https://ваш-сайт.ru/kosta-db.php
   BRIDGE_SECRET: '803d9248af7ea30740907f60f93bb93e7b248c3b1e4d398f', // должен совпадать с $SECRET в kosta-db.php
   ADMIN_SECRET: '5b2a9e3a300ffcec3b37c0ab33f19a4743f43282472055e0' // любая длинная случайная строка, подписывает сессию админа
 };
