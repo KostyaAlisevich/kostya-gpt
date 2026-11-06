@@ -5,11 +5,11 @@ module.exports = {
   ADMIN_LOGIN: 'admin',
   ADMIN_PASSWORD: 'aka29072012',
   // --- MySQL (необязательно: пока MYSQL_HOST пустой, сайт работает без базы) ---
-  MYSQL_HOST: '',        // например: gateway01.eu-central-1.prod.aws.tidbcloud.com
-  MYSQL_PORT: 3306,
-  MYSQL_USER: '',
-  MYSQL_PASSWORD: '',
-  MYSQL_DATABASE: '',
+  MYSQL_HOST: 'mysql-23b8fc45-alisevickosta-750e.k.aivencloud.com',        // например: gateway01.eu-central-1.prod.aws.tidbcloud.com
+  MYSQL_PORT: 13322,
+  MYSQL_USER: 'avnadmin',
+  MYSQL_PASSWORD: 'AVNS_kwTp5C6d-e8ffHrjkeu',
+  MYSQL_DATABASE: 'defaultdb',
   MYSQL_SSL: 'verify',   // 'verify' — шифрование с проверкой (по умолчанию), 'noverify' — без проверки сертификата, 'off' — без шифрования
   // --- Мост к MySQL на обычном хостинге (если база недоступна напрямую). Заполните ВМЕСТО MYSQL_* ---
   BRIDGE_URL: 'https://kosta-gpt.samp.date/kosta-db.php',        // например: https://ваш-сайт.ru/kosta-db.php
